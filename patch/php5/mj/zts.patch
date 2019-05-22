@@ -1,0 +1,13 @@
+diff --git a/Zend/Zend.m4 b/Zend/Zend.m4
+index 9ef7982..f8bdb2f 100644
+--- a/Zend/Zend.m4
++++ b/Zend/Zend.m4
+@@ -131,7 +131,7 @@ AC_ARG_WITH(zend-vm,
+ 
+ AC_ARG_ENABLE(maintainer-zts,
+ [  --enable-maintainer-zts Enable thread safety - for code maintainers only!!],[
+-  ZEND_MAINTAINER_ZTS=$enableval
++  ZEND_MAINTAINER_ZTS=no
+ ],[
+   ZEND_MAINTAINER_ZTS=no
+ ])  

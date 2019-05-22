@@ -1,0 +1,15 @@
+--- a/ext/simplexml/simplexml.c	2012-08-06 18:10:44.621017026 +0800
++++ b/ext/simplexml/simplexml.c	2012-08-06 18:12:48.016270419 +0800
+@@ -1417,7 +1417,12 @@ SXE_METHOD(asXML)
+ 
+ 			xmlNodeDumpOutput(outbuf, (xmlDocPtr) sxe->document->ptr, node, 0, 0, ((xmlDocPtr) sxe->document->ptr)->encoding);
+ 			xmlOutputBufferFlush(outbuf);
++#ifdef LIBXML2_NEW_BUFFER
++			RETVAL_STRINGL((char *)xmlOutputBufferGetContent(outbuf),
++			               xmlOutputBufferGetSize(outbuf), 1);
++#else
+ 			RETVAL_STRINGL((char *)outbuf->buffer->content, outbuf->buffer->use, 1);
++#endif
+ 			xmlOutputBufferClose(outbuf);
+ 		}
+ 	} else {

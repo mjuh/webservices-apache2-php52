@@ -1,0 +1,20 @@
+--- a/ext/dom/node.c	2012-08-06 17:49:48.826716692 +0800
++++ b/ext/dom/node.c	2012-08-06 17:52:47.633484660 +0800
+@@ -1895,9 +1895,17 @@ static void dom_canonicalization(INTERNA
+         RETVAL_FALSE;
+     } else {
+ 		if (mode == 0) {
++#ifdef LIBXML2_NEW_BUFFER
++            ret = xmlOutputBufferGetSize(buf);
++#else
+ 			ret = buf->buffer->use;
++#endif
+ 			if (ret > 0) {
++#ifdef LIBXML2_NEW_BUFFER
++                RETVAL_STRINGL((char *) xmlOutputBufferGetContent(buf), ret, 1);
++#else
+ 				RETVAL_STRINGL((char *) buf->buffer->content, ret, 1);
++#endif
+ 			} else {
+ 				RETVAL_EMPTY_STRING();
+ 			}

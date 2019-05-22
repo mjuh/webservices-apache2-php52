@@ -194,40 +194,32 @@ let
      checkTarget = "test";
   };
 
-#https://downloads.mariadb.org/connector-c/+releases/
-connectorc = stdenv.mkDerivation rec {
-  name = "mariadb-connector-c-${version}";
-  version = "6.1.0";
+  connectorc = stdenv.mkDerivation rec {
+     name = "mariadb-connector-c-${version}";
+     version = "6.1.0";
 
-  src = fetchurl {
-    url = "https://downloads.mysql.com/archives/get/file/mysql-connector-c-6.1.0-src.tar.gz";
-    sha256 = "0cifddg0i8zm8p7cp13vsydlpcyv37mz070v6l2mnvy0k8cng2na";
-    name   = "mariadb-connector-c-${version}-src.tar.gz";
-  };
+     src = fetchurl {
+         url = "https://downloads.mysql.com/archives/get/file/mysql-connector-c-6.1.0-src.tar.gz";
+         sha256 = "0cifddg0i8zm8p7cp13vsydlpcyv37mz070v6l2mnvy0k8cng2na";
+         name   = "mariadb-connector-c-${version}-src.tar.gz";
+     };
 
   # outputs = [ "dev" "out" ]; FIXME: cmake variables don't allow that < 3.0
-  cmakeFlags = [
-    "-DWITH_EXTERNAL_ZLIB=ON"
-    "-DMYSQL_UNIX_ADDR=/run/mysqld/mysqld.sock"
-  ];
+     cmakeFlags = [
+            "-DWITH_EXTERNAL_ZLIB=ON"
+            "-DMYSQL_UNIX_ADDR=/run/mysqld/mysqld.sock"
+     ];
 
   # The cmake setup-hook uses $out/lib by default, this is not the case here.
-  preConfigure = stdenv.lib.optionalString stdenv.isDarwin ''
-    cmakeFlagsArray+=("-DCMAKE_INSTALL_NAME_DIR=$out/lib/mariadb")
-  '';
+     preConfigure = stdenv.lib.optionalString stdenv.isDarwin ''
+             cmakeFlagsArray+=("-DCMAKE_INSTALL_NAME_DIR=$out/lib/mariadb")
+     '';
 
-  nativeBuildInputs = [ cmake ];
-  propagatedBuildInputs = [ openssl zlib ];
-  buildInputs = [ libiconv ];
-
-  enableParallelBuilding = true;
-
-#  postFixup = ''
-#    ln -sv mariadb_config $out/bin/mysql_config
-#    ln -sv mariadb $out/lib/mysql
-#    ln -sv mariadb $out/include/mysql
-#  '';
-};
+     nativeBuildInputs = [ cmake ];
+     propagatedBuildInputs = [ openssl zlib ];
+     buildInputs = [ libiconv ];
+     enableParallelBuilding = true;
+  };
 
   php52 = stdenv.mkDerivation rec {
       name = "php-5.2.17";
@@ -240,7 +232,7 @@ connectorc = stdenv.mkDerivation rec {
          automake
          pkgconfig
          curl
-         apacheHttpd
+         apacheHttpd.dev
          bison
          bzip2
          flex
@@ -274,7 +266,6 @@ connectorc = stdenv.mkDerivation rec {
          glibcLocales
       ];
 
-#mysql55
       CXXFLAGS = "-std=c++11";
 
       configureFlags = ''
@@ -336,11 +327,6 @@ connectorc = stdenv.mkDerivation rec {
        --with-mysql=${connectorc}
        --with-mysqli=${connectorc}/bin/mysql_config
        '';
-#mariadb-connector-c
-
-#       --with-pdo-mysql=${mysql55}
-#       --with-mysql=${mysql55}
-#       --with-mysqli=${mysql55}/bin/mysql_config
 
       hardeningDisable = [ "bindnow" ];
 
@@ -393,6 +379,9 @@ connectorc = stdenv.mkDerivation rec {
       outputs = [ "out" ];
       doCheck = false;
       checkTarget = "test"; 
+      postInstall = ''
+          sed -i $out/include/php/main/build-defs.h -e '/PHP_INSTALL_IT/d'
+      '';     
   };
 
   php52Packages.timezonedb = stdenv.mkDerivation rec {
@@ -463,12 +452,12 @@ connectorc = stdenv.mkDerivation rec {
 #http://mpm-itk.sesse.net/
   apacheHttpdmpmITK = stdenv.mkDerivation rec {
       name = "apacheHttpdmpmITK";
-      buildInputs =[ apacheHttpd ];
+      buildInputs =[ apacheHttpd.dev ];
       src = fetchurl {
           url = "http://mpm-itk.sesse.net/mpm-itk-2.4.7-04.tar.gz";
           sha256 = "609f83e8995416c5491348e07139f26046a579db20cf8488ebf75d314668efcf";
       };
-      configureFlags = [ "--with-apxs2=${apacheHttpd}/bin/apxs" ];
+      configureFlags = [ "--with-apxs2=${apacheHttpd.dev}/bin/apxs" ];
       patches = [ ./patch/httpd/itk.patch ];
       postInstall = ''
           mkdir -p $out/modules
@@ -549,7 +538,7 @@ pkgs.dockerTools.buildLayeredImage rec {
                  bash
                  coreutils
                  findutils
-                 apacheHttpd
+                 apacheHttpd.out
                  apacheHttpdmpmITK
                  rootfs
                  execline

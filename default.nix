@@ -160,6 +160,18 @@ let
       '';
   };
 
+  zendoptimizer = stdenv.mkDerivation rec {
+      name = "zend-optimizer-3.3.9";
+      src =  fetchurl {
+          url = "http://downloads.zend.com/optimizer/3.3.9/ZendOptimizer-3.3.9-linux-glibc23-x86_64.tar.gz";
+          sha256 = "1f7c7p9x9p2bjamci04vr732rja0l1279fvxix7pbxhw8zn2vi1d";
+      };
+      installPhase = ''
+                  mkdir -p  $out/
+                  tar zxvf  ${src} -C $out/ ZendOptimizer-3.3.9-linux-glibc23-x86_64/data/5_2_x_comp/ZendOptimizer.so
+      '';
+  };
+
   pcre831 = stdenv.mkDerivation rec {
       name = "pcre-8.31";
       src = fetchurl {
@@ -385,10 +397,10 @@ let
   };
 
   php52Packages.timezonedb = stdenv.mkDerivation rec {
-      name = "timezonedb-2018.9";
+      name = "timezonedb-2019.1";
       src = fetchurl {
           url = "http://pecl.php.net/get/${name}.tgz";
-          sha256 = "661364836f91ec8b5904da4c928b5b2df8cb3af853994f8f4d68b57bc3c32ec8";
+          sha256 = "0rrxfs5izdmimww1w9khzs9vcmgi1l90wni9ypqdyk773cxsn725";
       };
       nativeBuildInputs = [ autoreconfHook ] ;
       buildInputs = [ php52 ];
@@ -397,6 +409,61 @@ let
       postInstall = ''
           mkdir -p  $out/etc/php.d
           echo "extension = $out/lib/php/extensions/timezonedb.so" >> $out/etc/php.d/timezonedb.ini
+      '';
+  };
+
+  php52Packages.dbase = stdenv.mkDerivation rec {
+      name = "dbase-5.1.0";
+      src = fetchurl {
+          url = "http://pecl.php.net/get/${name}.tgz";
+          sha256 = "15vs527kkdfp119gbhgahzdcww9ds093bi9ya1ps1r7gn87s9mi0";
+      };
+      nativeBuildInputs = [ autoreconfHook ] ;
+      buildInputs = [ php52 ];
+      makeFlags = [ "EXTENSION_DIR=$(out)/lib/php/extensions" ];
+      autoreconfPhase = "phpize";
+      postInstall = ''
+          mkdir -p  $out/etc/php.d
+          echo "extension = $out/lib/php/extensions/dbase.so" >> $out/etc/php.d/dbase.ini
+      '';
+  };
+
+  php52Packages.intl = stdenv.mkDerivation rec {
+      name = "intl-3.0.0";
+      src = fetchurl {
+          url = "http://pecl.php.net/get/${name}.tgz";
+          sha256 = "11sz4mx56pc1k7llgbbpz2i6ls73zcxxdwa1d0jl20ybixqxmgc8";
+      };
+      nativeBuildInputs = [ autoreconfHook ] ;
+      buildInputs = [ php52 icu ];
+      makeFlags = [ "EXTENSION_DIR=$(out)/lib/php/extensions" ];
+      autoreconfPhase = "phpize";
+      postInstall = ''
+          mkdir -p  $out/etc/php.d
+          ls  $out/lib/php/extensions/
+          echo "extension = $out/lib/php/extensions/intl.so" >> $out/etc/php.d/intl.ini
+      '';
+  };
+
+  php52Packages.zendopcache = stdenv.mkDerivation rec {
+      name = "zendopcache-7.0.5";
+      src = fetchurl {
+          url = "http://pecl.php.net/get/${name}.tgz";
+          sha256 = "1h79x7n5pylbc08cxl44fvbi1a1592n0w0mm847jirkqrhxs5r68";
+      };
+      nativeBuildInputs = [ autoreconfHook ] ;
+      buildInputs = [ php52 ];
+      makeFlags = [ "EXTENSION_DIR=$(out)/lib/php/extensions" ];
+      autoreconfPhase = "phpize";
+      postInstall = ''
+          mkdir -p  $out/etc/php.d
+          cat << EOF > $out/etc/php.d/opcache.ini
+          zend_extension = $out/lib/php/extensions/opcache.so
+          opcache.enable = On
+          opcache.file_cache_only = On
+          opcache.file_cache = "/opcache"
+          opcache.log_verbosity_level = 4
+          EOF
       '';
   };
 
@@ -411,11 +478,6 @@ let
 
   enableParallelBuilding = true;
 
-  #preConfigure = if tetex != null then
-  #  ''
-  #    export DVIDecodeDelegate=${tetex}/bin/dvips
-  #  '' else "";
-
   configureFlags = ''
     --with-gslib
     --with-frozenpaths
@@ -426,8 +488,6 @@ let
     [ pkgconfig bzip2 fontconfig freetype libjpeg libpng libtiff libxml2 zlib librsvg
       libtool jasper 
     ];
-
-  #buildInputs = [ tetex pkgconfig ];
 
   postInstall = ''(cd "$out/include" && ln -s ImageMagick* ImageMagick)'';
  };
@@ -490,6 +550,9 @@ let
          php52
          php52Packages.timezonedb
          php52Packages.imagick
+         php52Packages.zendopcache
+         php52Packages.intl
+         php52Packages.dbase
          bash
          apacheHttpd
          apacheHttpdmpmITK
@@ -499,6 +562,7 @@ let
          postfix
          perl
          gnugrep
+         zendoptimizer
       ];
       name = "rootfs";
       src = ./rootfs;
@@ -511,6 +575,7 @@ let
          export s6portableutils="${s6-portable-utils}"
          export phpioncubepack="${phpioncubepack}"
          export php52="${php52}"
+         export zendoptimizer="${zendoptimizer}"
          export mjerrors="${mjerrors}"
          export postfix="${postfix}"
          echo ${apacheHttpd}
@@ -534,7 +599,11 @@ pkgs.dockerTools.buildLayeredImage rec {
                  perl
                  php52Packages.timezonedb
                  php52Packages.imagick
+                 php52Packages.zendopcache
+                 php52Packages.intl
+                 php52Packages.dbase
                  phpioncubepack
+                 zendoptimizer
                  bash
                  coreutils
                  findutils

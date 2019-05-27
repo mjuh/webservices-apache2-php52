@@ -563,6 +563,7 @@ let
          perl
          gnugrep
          zendoptimizer
+         gcc-unwrapped.lib
       ];
       name = "rootfs";
       src = ./rootfs;
@@ -578,6 +579,7 @@ let
          export zendoptimizer="${zendoptimizer}"
          export mjerrors="${mjerrors}"
          export postfix="${postfix}"
+         export libstdcxx="${gcc-unwrapped.lib}"
          echo ${apacheHttpd}
          for file in $(find $src/ -type f)
          do
@@ -624,9 +626,25 @@ pkgs.dockerTools.buildLayeredImage rec {
                  perl528Packages.ListMoreUtilsXS
                  perl528Packages.LWPProtocolHttps
                  mjerrors
+                 glibc
+                 gcc-unwrapped.lib
     ];
       extraCommands = ''
           chmod 555 ${postfix}/bin/postdrop
+#          echo ${gcc-unwrapped.lib}/lib/libstdc++.so.6.0.24 >> etc/ld-nix.so.preload
+
+#          ln -s ${gcc-unwrapped.lib}/lib/libstdc++.so.6.0.24 /lib/libstdc++.so.6
+#          mkdir -p  usr/lib/
+#          ln -s /nix/store/sf0wnp30savqz9ljn6fsrn8f63w5v0za-gcc-7.4.0-lib/lib/libstdc++.so.6 /lib/libstdc++.so.6
+#          ln -s lib usr/lib/x86_64-linux-gnu
+#          touch lib/x86_64-linux-gnu/1
+#          ls -la lib
+#          ln -sf ${glibc}/lib lib/x86_64-linux-gnu
+#          cd lib
+#          ln -sf lib/x86_64-linux-gnu .. 
+#          ls -la 
+#          ls -la /usr/lib/
+#          ln -sf ${gcc}/lib /usr/lib/x86_64-linux-gnu          
       '';
    config = {
        Entrypoint = [ "${apacheHttpd}/bin/httpd" "-D" "FOREGROUND" "-d" "${rootfs}/etc/httpd" ];
@@ -634,3 +652,4 @@ pkgs.dockerTools.buildLayeredImage rec {
     };
 }
 
+#LD_LIBRARY_PATH=/lib

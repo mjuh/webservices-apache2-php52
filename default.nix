@@ -626,6 +626,15 @@ pkgs.dockerTools.buildLayeredImage rec {
                  perl528Packages.ListMoreUtilsXS
                  perl528Packages.LWPProtocolHttps
                  perl528Packages.DBI
+	         perl528Packages.CGI
+                 perl528Packages.DigestPerlMD5
+                 perl528Packages.DigestSHA1
+	         perl528Packages.FileBOM
+	         perl528Packages.GD
+                 perl528Packages.LocaleGettext
+	         perl528Packages.HashDiff
+	         perl528Packages.JSONXS
+                 perl528Packages.POSIXstrftimeCompiler
                  mjerrors
                  glibc
                  gcc-unwrapped.lib

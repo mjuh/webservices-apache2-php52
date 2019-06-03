@@ -543,95 +543,22 @@ let
       '';
   };
 
-  #perl5lib = {
-  #   with perl528Packages; 
-  #   lib = "SetEnv PERL5LIB " + lib.strings.makeSearchPath "lib/perl5/site_perl" [ perl CGI DBI ];
-  #}
 
-
-  perl5lib =  {
-    name = "perl528-modules-v1";
-    buildInputs = [ makeWrapper ];
-    paths = with pkgs.perl528Packages; [
-        perl
-        CGI
-        CGISimple
-        CryptDES
-        CryptMySQL
-        CryptOpenSSLAES
-        CryptOpenSSLRSA
-        CryptPKCS10
-        CryptPasswdMD5
-        Curses
-        DBDPg
-        DBDSQLite
-        DBDmysql
-        DBI
-        DataDump
-        DataDumper
-        DataSerializer
-        DataUUID
-        DateCalc
-        DateManip
-        DateSimple
-        DateTime
-        DateTimeLocale
-        DateTimeSet
-        DateTimeTimeZone
-        DigestMD5
-        DigestSHA1
-        FileBaseDir
-        FileCopyRecursive
-        FileLibMagic
-        FileMimeInfo
-        FileNFSLock
-        FilePath
-        FileRemove
-        FileTemp
-        FileType
-        FileUtil
-        Filter
-        FilterSimple
-        GSSAPI
-        GetoptLong
-        GetoptTabular
-        Graph
-        JSON
-        JSONAny
-        LWP
-        LWPProtocolConnect
-        LWPProtocolHttps
-        LocaleGettext
-        LockFileSimple
-        LogHandler
-        LogMessage
-        MIMELite
-        MIMETools
-        PathTools
-        RegexpParser
-        Socket
-        TermCap
-        TermEncoding
-        TermReadLineGnu
-        TextAligner
-        TextCSV
-        ThreadQueue
-        ThreadSemaphore
-        TimeDate
-        XMLDOM
-        XMLParser
-        base
-        threads
-        threadsshared
-   ];
-   postBuild = ''
-      echo "$out/lib/perl5/site_perl" >> /etc/httpd/httpd-perl.conf
-      wrapProgram $out/bin/perl --set PERL5LIB "$out/lib/perl5/site_perl"
-   '';
+   ## fixxed nix-generate-from-cpan Text::Truncate
+   perlTextTruncate = perlPackages.buildPerlPackage rec {
+    name = "Text-Truncate-1.06";
+    src = fetchurl {
+      url = "mirror://cpan/authors/id/I/IL/ILV/${name}.tar.gz";
+      sha256 = "1933361ec297253d1dd518068b863dcda131aba1da5ac887040c3d85a2d2a5d2";
+    };
+    buildInputs = [ perlPackages.ModuleBuild ];
   };
 
   rootfs = stdenv.mkDerivation rec {
       perl5Packages = [
+         perlTextTruncate
+         perlPackages.TimeLocal
+         perlPackages.PerlMagick
          perlPackages.commonsense
          perlPackages.Mojolicious
          perlPackages.base
@@ -642,7 +569,9 @@ let
          perlPackages.ListMoreUtilsXS
          perlPackages.LWPProtocolHttps
          perlPackages.DBI
+         perlPackages.DBDmysql
          perlPackages.CGI
+         perlPackages.FilePath
          perlPackages.DigestPerlMD5
          perlPackages.DigestSHA1
          perlPackages.FileBOM
@@ -651,6 +580,7 @@ let
          perlPackages.HashDiff
          perlPackages.JSONXS
          perlPackages.POSIXstrftimeCompiler
+         perlPackages.perl
       ];
       nativeBuildInputs = [ 
          mjerrors
@@ -733,12 +663,14 @@ dockerAnnotations = {
     init = false;
     read_only = true;
     network = "host";
-    environment = { HTTPD_PORT = "8052"; HTTPD_SERVERNAME = "webxx"; } ;
+    environment = { HTTPD_PORT = "\$port"; } ;
 ##TO DO: 
-##             -v $(pwd)/sites-enabled:/read/sites-enabled:ro -v $(pwd)/phpsec/defaultsec.ini:/etc/php.d/defaultsec.ini:ro ? -v $(pwd)/postfix-conf-test:/etc/postfix:ro ?
+##? -v $(pwd)/postfix-conf-test:/etc/postfix:ro ?
     volumes = [
       ({ type = "bind"; source = "/etc/passwd"; destination = "/etc/passwd"; readonly = true; })  
       ({ type = "bind"; source = "/etc/group"; destination = "/etc/group"; readonly = true; })
+      ({ type = "bind"; source = "\$sitesenabled"; destination = "/read/sites-enabled"; readonly = true; })
+      ({ type = "bind"; source = "\$phpcustom"; destination = "/etc/php.d/custom.ini"; readonly = true; })
       ({ type = "bind"; source = "/opcache"; destination = "/opcache"; readonly = false; })
       ({ type = "bind"; source = "/home"; destination = "/home"; readonly = false; })
       ({ type = "bind"; source = "/var/spool/postfix"; destination = "/var/spool/postfix"; readonly = false; })
@@ -748,7 +680,6 @@ dockerAnnotations = {
     ];
   };
 };
-
 
 
 in 
@@ -765,6 +696,7 @@ pkgs.dockerTools.buildLayeredImage rec {
                  phpioncubepack
                  zendoptimizer
                  bash
+                 perl
                  coreutils
                  findutils
                  apacheHttpd.out

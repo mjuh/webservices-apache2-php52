@@ -779,14 +779,22 @@ pkgs.dockerTools.buildLayeredImage rec {
                  glibc
                  gcc-unwrapped.lib
     ];
-#perl5lib
       extraCommands = ''
           chmod 555 ${postfix}/bin/postdrop
       '';
    config = {
        Entrypoint = [ "${apacheHttpd}/bin/httpd" "-D" "FOREGROUND" "-d" "${rootfs}/etc/httpd" ];
-       Env = [ "TZ=Europe/Moscow" "TZDIR=/share/zoneinfo" "LOCALE_ARCHIVE_2_27=${locale}/lib/locale/locale-archive" "LC_ALL=en_US.UTF-8" "HTTPD_PORT=8074" "HTTPD_SERVERNAME=web15" ];
-    };
+       Env = [ 
+          "TZ=Europe/Moscow"
+          "TZDIR=/share/zoneinfo"
+          "LOCALE_ARCHIVE_2_27=${locale}/lib/locale/locale-archive"
+          "LC_ALL=en_US.UTF-8"
+          "HTTPD_PORT=8074" 
+       ];
+       Labels = rec {
+          "ru.majordomo.docker.arg-hints-json" = builtins.toJSON dockerAnnotations.argHints;
+          "ru.majordomo.docker.cmd" = dockerRunCmd dockerAnnotations.argHints "${name}:${tag}";
+          "ru.majordomo.docker.exec.reload-cmd" = "${apacheHttpd}/bin/httpd -d ${rootfs}/etc/httpd -k graceful";     
+       };
+   };
 }
-
-#LD_LIBRARY_PATH=/lib

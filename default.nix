@@ -543,7 +543,115 @@ let
       '';
   };
 
+  #perl5lib = {
+  #   with perl528Packages; 
+  #   lib = "SetEnv PERL5LIB " + lib.strings.makeSearchPath "lib/perl5/site_perl" [ perl CGI DBI ];
+  #}
+
+
+  perl5lib =  {
+    name = "perl528-modules-v1";
+    buildInputs = [ makeWrapper ];
+    paths = with pkgs.perl528Packages; [
+        perl
+        CGI
+        CGISimple
+        CryptDES
+        CryptMySQL
+        CryptOpenSSLAES
+        CryptOpenSSLRSA
+        CryptPKCS10
+        CryptPasswdMD5
+        Curses
+        DBDPg
+        DBDSQLite
+        DBDmysql
+        DBI
+        DataDump
+        DataDumper
+        DataSerializer
+        DataUUID
+        DateCalc
+        DateManip
+        DateSimple
+        DateTime
+        DateTimeLocale
+        DateTimeSet
+        DateTimeTimeZone
+        DigestMD5
+        DigestSHA1
+        FileBaseDir
+        FileCopyRecursive
+        FileLibMagic
+        FileMimeInfo
+        FileNFSLock
+        FilePath
+        FileRemove
+        FileTemp
+        FileType
+        FileUtil
+        Filter
+        FilterSimple
+        GSSAPI
+        GetoptLong
+        GetoptTabular
+        Graph
+        JSON
+        JSONAny
+        LWP
+        LWPProtocolConnect
+        LWPProtocolHttps
+        LocaleGettext
+        LockFileSimple
+        LogHandler
+        LogMessage
+        MIMELite
+        MIMETools
+        PathTools
+        RegexpParser
+        Socket
+        TermCap
+        TermEncoding
+        TermReadLineGnu
+        TextAligner
+        TextCSV
+        ThreadQueue
+        ThreadSemaphore
+        TimeDate
+        XMLDOM
+        XMLParser
+        base
+        threads
+        threadsshared
+   ];
+   postBuild = ''
+      echo "$out/lib/perl5/site_perl" >> /etc/httpd/httpd-perl.conf
+      wrapProgram $out/bin/perl --set PERL5LIB "$out/lib/perl5/site_perl"
+   '';
+  };
+
   rootfs = stdenv.mkDerivation rec {
+      perl5Packages = [
+         perlPackages.commonsense
+         perlPackages.Mojolicious
+         perlPackages.base
+         perlPackages.libxml_perl
+         perlPackages.libnet
+         perlPackages.libintl_perl
+         perlPackages.LWP
+         perlPackages.ListMoreUtilsXS
+         perlPackages.LWPProtocolHttps
+         perlPackages.DBI
+         perlPackages.CGI
+         perlPackages.DigestPerlMD5
+         perlPackages.DigestSHA1
+         perlPackages.FileBOM
+         perlPackages.GD
+         perlPackages.LocaleGettext
+         perlPackages.HashDiff
+         perlPackages.JSONXS
+         perlPackages.POSIXstrftimeCompiler
+      ];
       nativeBuildInputs = [ 
          mjerrors
          phpioncubepack
@@ -564,11 +672,14 @@ let
          gnugrep
          zendoptimizer
          gcc-unwrapped.lib
-      ];
+      ] ++ perl5Packages;
       name = "rootfs";
       src = ./rootfs;
+      perl5lib = perlPackages.makePerlPath perl5Packages;
       buildPhase = ''
          echo $nativeBuildInputs
+         export perl5lib="${perl5lib}"
+         echo ${perl5lib}
          export coreutils="${coreutils}"
          export bash="${bash}"
          export apacheHttpdmpmITK="${apacheHttpdmpmITK}"
@@ -592,13 +703,60 @@ let
       '';
   };
 
+keyValOrBoolKey = k: v: if isBool v then (if v then "${k}" else "") else "${k}=${v}";
+
+setToCommaSep = x: concatStringsSep "," (mapAttrsToList keyValOrBoolKey x);
+
+setToKeyVal = x: mapAttrsToList (k: v: "${k}=${v}") x;
+
+dockerRunCmd = {
+    init ? false,
+    read_only ? false,
+    network ? null,
+    volumes ? null,
+    environment ? null,
+    ...
+  }: image:
+  concatStringsSep " " (
+    [ "docker run"]
+    ++ optional init "--init"
+    ++ optional read_only "--read-only"
+    ++ optional (network != null) "--network=${network}"
+    ++ optionals (volumes != null) (map (v: "--mount ${setToCommaSep v}") volumes)
+    ++ optionals (environment != null) (map (e: "-e ${e}") (setToKeyVal environment))
+    ++ [ image ]
+);
+
+
+dockerAnnotations = {
+  argHints = {
+    init = false;
+    read_only = true;
+    network = "host";
+    environment = { HTTPD_PORT = "8052"; HTTPD_SERVERNAME = "webxx"; } ;
+##TO DO: 
+##             -v $(pwd)/sites-enabled:/read/sites-enabled:ro -v $(pwd)/phpsec/defaultsec.ini:/etc/php.d/defaultsec.ini:ro ? -v $(pwd)/postfix-conf-test:/etc/postfix:ro ?
+    volumes = [
+      ({ type = "bind"; source = "/etc/passwd"; destination = "/etc/passwd"; readonly = true; })  
+      ({ type = "bind"; source = "/etc/group"; destination = "/etc/group"; readonly = true; })
+      ({ type = "bind"; source = "/opcache"; destination = "/opcache"; readonly = false; })
+      ({ type = "bind"; source = "/home"; destination = "/home"; readonly = false; })
+      ({ type = "bind"; source = "/var/spool/postfix"; destination = "/var/spool/postfix"; readonly = false; })
+      ({ type = "bind"; source = "/var/lib/postfix"; destination = "/var/lib/postfix"; readonly = false; })
+      ({ type = "tmpfs"; destination = "/run"; })
+      ({ type = "tmpfs"; destination = "/tmp"; tmpfs-mode = "1777"; })
+    ];
+  };
+};
+
+
+
 in 
 
 pkgs.dockerTools.buildLayeredImage rec {
     name = "docker-registry.intr/webservices/php52";
     tag = "master";
     contents = [ php52 
-                 perl
                  php52Packages.timezonedb
                  php52Packages.imagick
                  php52Packages.zendopcache
@@ -617,28 +775,11 @@ pkgs.dockerTools.buildLayeredImage rec {
                  mime-types
                  postfix
                  locale
-                 perl528Packages.Mojolicious
-                 perl528Packages.base
-                 perl528Packages.libxml_perl
-                 perl528Packages.libnet
-                 perl528Packages.libintl_perl
-                 perl528Packages.LWP 
-                 perl528Packages.ListMoreUtilsXS
-                 perl528Packages.LWPProtocolHttps
-                 perl528Packages.DBI
-	         perl528Packages.CGI
-                 perl528Packages.DigestPerlMD5
-                 perl528Packages.DigestSHA1
-	         perl528Packages.FileBOM
-	         perl528Packages.GD
-                 perl528Packages.LocaleGettext
-	         perl528Packages.HashDiff
-	         perl528Packages.JSONXS
-                 perl528Packages.POSIXstrftimeCompiler
                  mjerrors
                  glibc
                  gcc-unwrapped.lib
     ];
+#perl5lib
       extraCommands = ''
           chmod 555 ${postfix}/bin/postdrop
       '';

@@ -323,8 +323,8 @@ php52Packages = {
 #    buildInputs = [ perlPackages.ModuleBuild ];
 #  };
 
-  rootfs = mkRootfs {
-      name = "apache2-php52-rootfs";
+  mjperl5Packages =  stdenv.mkDerivation rec {
+      name = "mjperl";
       perl5Packages = [
          perlPackages.TimeLocal
          perlPackages.PerlMagick
@@ -351,10 +351,25 @@ php52Packages = {
          perlPackages.POSIXstrftimeCompiler
          perlPackages.perl
       ];
+      nativeBuildInputs = [ perl  ] ++ perl5Packages ;
+      perl5lib = perlPackages.makePerlPath perl5Packages;
+      src = ./perlmodules;
+      buildPhase = ''
+        export perl5lib="${perl5lib}"
+        echo ${perl5lib}
+        substituteAllInPlace $src/perl_modules.conf
+      '';
+      installPhase = ''
+         cp -pr ${src} $out/
+      '';
+  };
+
+  rootfs = mkRootfs {
+      name = "apache2-php52-rootfs";
       src = ./rootfs;
 #      nativeBuildInputs = [ perl  ] ++ perl5Packages ;
 #      perl5lib = perlPackages.makePerlPath perl5Packages;
-      inherit curl coreutils findutils apacheHttpdmpmITK apacheHttpd mjHttpErrorPages php52 postfix s6 execline zendoptimizer connectorc  ;
+      inherit curl coreutils findutils apacheHttpdmpmITK apacheHttpd mjHttpErrorPages php52 postfix s6 execline zendoptimizer connectorc mjperl5Packages ;
       ioncube = ioncube.v52;
       s6PortableUtils = s6-portable-utils;
       s6LinuxUtils = s6-linux-utils;

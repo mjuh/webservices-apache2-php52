@@ -402,7 +402,7 @@ pkgs.dockerTools.buildLayeredImage rec {
 #         perlPackages.JSONXS
 #         perlPackages.POSIXstrftimeCompiler
 #         perlPackages.perl
-  ] ++ collect isDerivation php52Packages;
+  ] ++ collect isDerivation php52Packages ++ collect isDerivation mjperl5Packages;
   config = {
     Entrypoint = [ "${rootfs}/init" ];
     Env = [

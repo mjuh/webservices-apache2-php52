@@ -1,164 +1,27 @@
-with import <nixpkgs> {};
-
-with lib;
+with import <nixpkgs> {
+  overlays = [
+    (import (builtins.fetchGit { url = "git@gitlab.intr:_ci/nixpkgs.git"; ref = "master"; }))
+  ];
+};
 
 let
+
+inherit (builtins) concatMap getEnv toJSON;
+inherit (dockerTools) buildLayeredImage;
+inherit (lib) concatMapStringsSep firstNChars flattenSet dockerRunCmd buildPhpPackage mkRootfs;
+inherit (lib.attrsets) collect isDerivation;
+inherit (stdenv) mkDerivation;
 
   locale = glibcLocales.override {
       allLocales = false;
       locales = ["en_US.UTF-8/UTF-8"];
   };
 
-  postfix = stdenv.mkDerivation rec {
-      name = "postfix-${version}";
-      version = "3.4.5";
-      srcs = [
-         ( fetchurl {
-            url = "ftp://ftp.cs.uu.nl/mirror/postfix/postfix-release/official/${name}.tar.gz";
-            sha256 = "17riwr21i9p1h17wpagfiwkpx9bbx7dy4gpdl219a11akm7saawb";
-          })
-       ./patch/postfix/mj/lib
-      ];
-      nativeBuildInputs = [ makeWrapper m4 ];
-      buildInputs = [ db openssl cyrus_sasl icu libnsl pcre ];
-      sourceRoot = "postfix-3.4.5";
-      hardeningDisable = [ "format" ];
-      hardeningEnable = [ "pie" ];
-      patches = [
-       ./patch/postfix/nix/postfix-script-shell.patch
-       ./patch/postfix/nix/postfix-3.0-no-warnings.patch
-       ./patch/postfix/nix/post-install-script.patch
-       ./patch/postfix/nix/relative-symlinks.patch
-       ./patch/postfix/mj/sendmail.patch
-       ./patch/postfix/mj/postdrop.patch
-       ./patch/postfix/mj/globalmake.patch
-      ];
-       ccargs = lib.concatStringsSep " " ([
-          "-DUSE_TLS"
-          "-DHAS_DB_BYPASS_MAKEDEFS_CHECK"
-          "-DNO_IPV6"
-          "-DNO_KQUEUE" "-DNO_NIS" "-DNO_DEVPOLL" "-DNO_EAI" "-DNO_PCRE"
-       ]);
-
-       auxlibs = lib.concatStringsSep " " ([
-           "-lresolv" "-lcrypto" "-lssl" "-ldb"
-       ]);
-      preBuild = ''
-          cp -pr ../lib/* src/global
-          sed -e '/^PATH=/d' -i postfix-install
-          sed -e "s|@PACKAGE@|$out|" -i conf/post-install
-
-          # post-install need skip permissions check/set on all symlinks following to /nix/store
-          sed -e "s|@NIX_STORE@|$NIX_STORE|" -i conf/post-install
-
-          export command_directory=$out/sbin
-          export config_directory=/etc/postfix
-          export meta_directory=$out/etc/postfix
-          export daemon_directory=$out/libexec/postfix
-          export data_directory=/var/lib/postfix
-          export html_directory=$out/share/postfix/doc/html
-          export mailq_path=$out/bin/mailq
-          export manpage_directory=$out/share/man
-          export newaliases_path=$out/bin/newaliases
-          export queue_directory=/var/spool/postfix
-          export readme_directory=$out/share/postfix/doc
-          export sendmail_path=$out/bin/sendmail
-          make makefiles CCARGS='${ccargs}' AUXLIBS='${auxlibs}'
-      '';
-
-      installTargets = [ "non-interactive-package" ];
-      installFlags = [ "install_root=installdir" ];
-
-      postInstall = ''
-          mkdir -p $out
-          cat << EOF > installdir/etc/postfix/main.cf
-          mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
-          mailbox_size_limit = 0
-          recipient_delimiter = +
-          message_size_limit = 20480000
-          maillog_file = /dev/stdout
-          relayhost = mail-checker2.intr
-          EOF
-          echo "smtp            25/tcp          mail" >> installdir/etc/services
-          echo "postlog   unix-dgram n  -       n       -       1       postlogd" >> installdir/etc/postfix/master.cf
-          echo "*: /dev/null" >> installdir/etc/aliases
-          mv -v installdir/$out/* $out/
-          cp -rv installdir/etc $out
-          sed -e '/^PATH=/d' -i $out/libexec/postfix/post-install
-          wrapProgram $out/libexec/postfix/post-install \
-            --prefix PATH ":" ${lib.makeBinPath [ coreutils findutils gnugrep ]}
-          wrapProgram $out/libexec/postfix/postfix-script \
-            --prefix PATH ":" ${lib.makeBinPath [ coreutils findutils gnugrep gawk gnused ]}
-          rm -f $out/libexec/postfix/post-install \
-                $out/libexec/postfix/postfix-wrapper \
-                $out/libexec/postfix/postfix-script \
-                $out/libexec/postfix/.post-install-wrapped \
-                $out/libexec/postfix/postfix-tls-script \
-                $out/libexec/postfix/postmulti-script \
-                $out/libexec/postfix/.postfix-script-wrapped
-      '';
-  };
-
-  apacheHttpd = stdenv.mkDerivation rec {
-      version = "2.4.39";
-      name = "apache-httpd-${version}";
-      src = fetchurl {
-          url = "mirror://apache/httpd/httpd-${version}.tar.bz2";
-          sha256 = "18ngvsjq65qxk3biggnkhkq8jlll9dsg9n3csra9p99sfw2rvjml";
-      };
-      outputs = [ "out" "dev" ];
-      setOutputFlags = false; # it would move $out/modules, etc.
-      buildInputs = [ perl zlib nss_ldap nss_pam_ldapd openldap];
-      prePatch = ''
-          sed -i config.layout -e "s|installbuilddir:.*|installbuilddir: $dev/share/build|"
-      '';
-
-      preConfigure = ''
-          configureFlags="$configureFlags --includedir=$dev/include"
-      '';
-
-      configureFlags = [
-          "--with-apr=${apr.dev}"
-          "--with-apr-util=${aprutil.dev}"
-          "--with-z=${zlib.dev}"
-          "--with-pcre=${pcre.dev}"
-          "--disable-maintainer-mode"
-          "--disable-debugger-mode"
-          "--enable-mods-shared=all"
-          "--enable-mpms-shared=all"
-          "--enable-cern-meta"
-          "--enable-imagemap"
-          "--enable-cgi"
-          "--disable-ldap"
-          "--with-mpm=prefork"
-      ];
-
-      enableParallelBuilding = true;
-      stripDebugList = "lib modules bin";
-      postInstall = ''
-          #mkdir -p $doc/share/doc/httpd
-          #mv $out/manual $doc/share/doc/httpd
-          mkdir -p $dev/bin
-
-          mv $out/bin/apxs $dev/bin/apxs
-      '';
-
-      passthru = {
-          inherit apr aprutil ;
-      };
-  };
-
-  phpioncubepack = stdenv.mkDerivation rec {
-      name = "phpioncubepack";
-      src =  fetchurl {
-          url = "https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz";
-          sha256 = "08bq06yr29zns53m603yv5h11ija8vzkq174qhcj4hz7ya05zb4a";
-      };
-      installPhase = ''
-                  mkdir -p  $out/
-                  tar zxvf  ${src} -C $out/ ioncube/ioncube_loader_lin_5.2.so
-      '';
-  };
+sh = dash.overrideAttrs (_: rec {
+  postInstall = ''
+    ln -s dash "$out/bin/sh"
+  '';
+});
 
   zendoptimizer = stdenv.mkDerivation rec {
       name = "zend-optimizer-3.3.9";
@@ -233,12 +96,61 @@ let
      enableParallelBuilding = true;
   };
 
+ imagemagick68 = stdenv.mkDerivation rec {
+  version = "6.8.8-7";
+    name = "ImageMagick-${version}";
+
+  src = fetchurl {
+    url = "https://mirror.sobukus.de/files/src/imagemagick/${name}.tar.xz";
+    sha256 = "1x5jkbrlc10rx7vm344j7xrs74c80xk3n1akqx8w5c194fj56mza";
+  };
+
+  enableParallelBuilding = true;
+
+  configureFlags = ''
+    --with-gslib
+    --with-frozenpaths
+    ${if librsvg != null then "--with-rsvg" else ""}
+  '';
+
+  buildInputs =
+    [ pkgconfig bzip2 fontconfig freetype libjpeg libpng libtiff libxml2 zlib librsvg
+      libtool jasper
+    ];
+
+  postInstall = ''(cd "$out/include" && ln -s ImageMagick* ImageMagick)'';
+ };
+
   php52 = stdenv.mkDerivation rec {
       name = "php-5.2.17";
       sha256 = "e81beb13ec242ab700e56f366e9da52fd6cf18961d155b23304ca870e53f116c";
       enableParallelBuilding = true;
       nativeBuildInputs = [ pkgconfig autoconf213 ];
-
+      srcs = [
+             ( fetchurl {
+                 url = "https://museum.php.net/php5/php-5.2.17.tar.bz2";
+                 inherit sha256;
+             })
+             ./src/ext/standard
+      ];
+      sourceRoot = "php-5.2.17";
+      patches = [
+                 ./patch/php5/mj/backport_crypt_from_php53.patch
+                 ./patch/php5/mj/configure.patch
+                 ./patch/php5/mj/zts.patch
+                 ./patch/php5/mj/fix-pcre-php52.patch
+                 ./patch/php5/mj/debian_patches_disable_SSLv2_for_openssl_1_0_0.patch.patch
+                 ./patch/php5/mj/fix-exif-buffer-overflow.patch
+                 ./patch/php5/mj/libxml2-2-9_adapt_documenttype.patch
+                 ./patch/php5/mj/libxml2-2-9_adapt_node.patch
+                 ./patch/php5/mj/libxml2-2-9_adapt_simplexml.patch
+                 ./patch/php5/mj/mj_engineers_apache2_4_abi_fix.patch
+                 ./patch/php5/mj/php52-fix-mysqli-buffer-overflow.patch
+      ];
+      stripDebugList = "bin sbin lib modules";
+      outputs = [ "out" ];
+      doCheck = false;
+      checkTarget = "test";
       buildInputs = [
          autoconf213
          automake
@@ -277,9 +189,7 @@ let
          glibc.dev
          glibcLocales
       ];
-
       CXXFLAGS = "-std=c++11";
-
       configureFlags = ''
        --disable-maintainer-zts
        --disable-pthreads
@@ -339,9 +249,7 @@ let
        --with-mysql=${connectorc}
        --with-mysqli=${connectorc}/bin/mysql_config
        '';
-
       hardeningDisable = [ "bindnow" ];
-
       preConfigure = ''
         cp -pr ../standard/* ext/standard
         # Don't record the configure flags since this causes unnecessary
@@ -352,211 +260,72 @@ let
             --replace '@CONFIGURE_OPTIONS@' "" \
             --replace '@PHP_LDFLAGS@' ""
         done
-
         substituteInPlace ext/tidy/tidy.c \
             --replace buffio.h tidybuffio.h
-
         [[ -z "$libxml2" ]] || addToSearchPath PATH $libxml2/bin
-
         export EXTENSION_DIR=$out/lib/php/extensions
-
         configureFlags+=(--with-config-file-path=$out/etc \
           --includedir=$dev/include)
-
         ./buildconf --force
       '';
-
-      srcs = [ 
-             ( fetchurl {
-                 url = "https://museum.php.net/php5/php-5.2.17.tar.bz2";
-                 inherit sha256;
-             })
-             ./src/ext/standard
-      ];
-      sourceRoot = "php-5.2.17";
-      patches = [ 
-                 ./patch/php5/mj/backport_crypt_from_php53.patch
-                 ./patch/php5/mj/configure.patch
-                 ./patch/php5/mj/zts.patch
-                 ./patch/php5/mj/fix-pcre-php52.patch
-                 ./patch/php5/mj/debian_patches_disable_SSLv2_for_openssl_1_0_0.patch.patch
-                 ./patch/php5/mj/fix-exif-buffer-overflow.patch
-                 ./patch/php5/mj/libxml2-2-9_adapt_documenttype.patch
-                 ./patch/php5/mj/libxml2-2-9_adapt_node.patch
-                 ./patch/php5/mj/libxml2-2-9_adapt_simplexml.patch
-                 ./patch/php5/mj/mj_engineers_apache2_4_abi_fix.patch
-                 ./patch/php5/mj/php52-fix-mysqli-buffer-overflow.patch
-      ];
-      stripDebugList = "bin sbin lib modules";
-      outputs = [ "out" ];
-      doCheck = false;
-      checkTarget = "test"; 
       postInstall = ''
           sed -i $out/include/php/main/build-defs.h -e '/PHP_INSTALL_IT/d'
       '';     
   };
 
-  php52Packages.timezonedb = stdenv.mkDerivation rec {
-      name = "timezonedb-2019.1";
-      src = fetchurl {
-          url = "http://pecl.php.net/get/${name}.tgz";
-          sha256 = "0rrxfs5izdmimww1w9khzs9vcmgi1l90wni9ypqdyk773cxsn725";
-      };
-      nativeBuildInputs = [ autoreconfHook ] ;
-      buildInputs = [ php52 ];
-      makeFlags = [ "EXTENSION_DIR=$(out)/lib/php/extensions" ];
-      autoreconfPhase = "phpize";
-      postInstall = ''
-          mkdir -p  $out/etc/php.d
-          echo "extension = $out/lib/php/extensions/timezonedb.so" >> $out/etc/php.d/timezonedb.ini
-      '';
+
+
+buildPhp52Package = args: buildPhpPackage ({ php = php52; } // args);
+
+
+php52Packages = {
+  timezonedb = buildPhp52Package {
+    name = "timezonedb";
+    version = "2019.1";
+    sha256 = "0rrxfs5izdmimww1w9khzs9vcmgi1l90wni9ypqdyk773cxsn725";
   };
 
-  php52Packages.dbase = stdenv.mkDerivation rec {
-      name = "dbase-5.1.0";
-      src = fetchurl {
-          url = "http://pecl.php.net/get/${name}.tgz";
-          sha256 = "15vs527kkdfp119gbhgahzdcww9ds093bi9ya1ps1r7gn87s9mi0";
-      };
-      nativeBuildInputs = [ autoreconfHook ] ;
-      buildInputs = [ php52 ];
-      makeFlags = [ "EXTENSION_DIR=$(out)/lib/php/extensions" ];
-      autoreconfPhase = "phpize";
-      postInstall = ''
-          mkdir -p  $out/etc/php.d
-          echo "extension = $out/lib/php/extensions/dbase.so" >> $out/etc/php.d/dbase.ini
-      '';
+  dbase = buildPhp52Package {
+      name = "dbase";
+      version = "5.1.0";
+      sha256 = "15vs527kkdfp119gbhgahzdcww9ds093bi9ya1ps1r7gn87s9mi0";
   };
 
-  php52Packages.intl = stdenv.mkDerivation rec {
-      name = "intl-3.0.0";
-      src = fetchurl {
-          url = "http://pecl.php.net/get/${name}.tgz";
-          sha256 = "11sz4mx56pc1k7llgbbpz2i6ls73zcxxdwa1d0jl20ybixqxmgc8";
-      };
-      nativeBuildInputs = [ autoreconfHook ] ;
-      buildInputs = [ php52 icu ];
-      makeFlags = [ "EXTENSION_DIR=$(out)/lib/php/extensions" ];
-      autoreconfPhase = "phpize";
-      postInstall = ''
-          mkdir -p  $out/etc/php.d
-          ls  $out/lib/php/extensions/
-          echo "extension = $out/lib/php/extensions/intl.so" >> $out/etc/php.d/intl.ini
-      '';
+  intl = buildPhp52Package {
+      name = "intl";
+      version = "3.0.0";
+      sha256 = "11sz4mx56pc1k7llgbbpz2i6ls73zcxxdwa1d0jl20ybixqxmgc8";
+      inputs = [ icu58 ];
   };
 
-  php52Packages.zendopcache = stdenv.mkDerivation rec {
-      name = "zendopcache-7.0.5";
-      src = fetchurl {
-          url = "http://pecl.php.net/get/${name}.tgz";
-          sha256 = "1h79x7n5pylbc08cxl44fvbi1a1592n0w0mm847jirkqrhxs5r68";
-      };
-      nativeBuildInputs = [ autoreconfHook ] ;
-      buildInputs = [ php52 ];
-      makeFlags = [ "EXTENSION_DIR=$(out)/lib/php/extensions" ];
-      autoreconfPhase = "phpize";
-      postInstall = ''
-          mkdir -p  $out/etc/php.d
-          cat << EOF > $out/etc/php.d/opcache.ini
-          zend_extension = $out/lib/php/extensions/opcache.so
-          opcache.enable = On
-          opcache.file_cache_only = On
-          opcache.file_cache = "/opcache"
-          opcache.log_verbosity_level = 4
-          EOF
-      '';
+  zendopcache = buildPhp52Package {
+      name = "zendopcache";
+      version = "7.0.5";
+      sha256 = "1h79x7n5pylbc08cxl44fvbi1a1592n0w0mm847jirkqrhxs5r68";
   };
 
- imagemagick68 = stdenv.mkDerivation rec {
-  version = "6.8.8-7";
-    name = "ImageMagick-${version}";
-
-  src = fetchurl {
-    url = "https://mirror.sobukus.de/files/src/imagemagick/${name}.tar.xz";
-    sha256 = "1x5jkbrlc10rx7vm344j7xrs74c80xk3n1akqx8w5c194fj56mza";
-  };
-
-  enableParallelBuilding = true;
-
-  configureFlags = ''
-    --with-gslib
-    --with-frozenpaths
-    ${if librsvg != null then "--with-rsvg" else ""}
-  '';
-
-  buildInputs =
-    [ pkgconfig bzip2 fontconfig freetype libjpeg libpng libtiff libxml2 zlib librsvg
-      libtool jasper 
-    ];
-
-  postInstall = ''(cd "$out/include" && ln -s ImageMagick* ImageMagick)'';
- };
-
-  php52Packages.imagick = stdenv.mkDerivation rec {
-      name = "imagick-3.1.2";
-      src = fetchurl {
-          url = "http://pecl.php.net/get/${name}.tgz";
-          sha256 = "528769ac304a0bbe9a248811325042188c9d16e06de16f111fee317c85a36c93";
-      };
-      nativeBuildInputs = [ autoreconfHook pkgconfig ] ;
-      buildInputs = [ php52 imagemagick68 pcre ];
-      makeFlags = [ "EXTENSION_DIR=$(out)/lib/php/extensions" ];
+  imagick = buildPhp52Package {
+      name = "imagick";
+      version = "3.1.2";
+      sha256 = "528769ac304a0bbe9a248811325042188c9d16e06de16f111fee317c85a36c93";
+      inputs = [ pkgconfig imagemagick68 pcre ];
       configureFlags = [ "--with-imagick=${imagemagick68}" ];
-      autoreconfPhase = "phpize";
-      postInstall = ''
-          mkdir -p  $out/etc/php.d
-          echo "extension = $out/lib/php/extensions/imagick.so" >> $out/etc/php.d/imagick.ini
-      '';
   };
+};
 
-#http://mpm-itk.sesse.net/
-  apacheHttpdmpmITK = stdenv.mkDerivation rec {
-      name = "apacheHttpdmpmITK";
-      buildInputs =[ apacheHttpd.dev ];
-      src = fetchurl {
-          url = "http://mpm-itk.sesse.net/mpm-itk-2.4.7-04.tar.gz";
-          sha256 = "609f83e8995416c5491348e07139f26046a579db20cf8488ebf75d314668efcf";
-      };
-      configureFlags = [ "--with-apxs2=${apacheHttpd.dev}/bin/apxs" ];
-      patches = [ ./patch/httpd/itk.patch ];
-      postInstall = ''
-          mkdir -p $out/modules
-          cp -pr /tmp/out/mpm_itk.so $out/modules
-      '';
-      outputs = [ "out" ];
-      enableParallelBuilding = true;
-      stripDebugList = "lib modules bin";
-  };
+#   ## fixxed nix-generate-from-cpan Text::Truncate  ## TO DO in overlay perl modules
+#   perlTextTruncate = perlPackages.buildPerlPackage rec {
+#    name = "Text-Truncate-1.06";
+#    src = fetchurl {
+#      url = "mirror://cpan/authors/id/I/IL/ILV/${name}.tar.gz";
+#      sha256 = "1933361ec297253d1dd518068b863dcda131aba1da5ac887040c3d85a2d2a5d2";
+#    };
+#    buildInputs = [ perlPackages.ModuleBuild ];
+#  };
 
-  mjerrors = stdenv.mkDerivation rec {
-      name = "mjerrors";
-      buildInputs = [ gettext ];
-      src = fetchGit {
-              url = "git@gitlab.intr:shared/http_errors.git";
-              ref = "master";
-              rev = "f83136c7e6027cb28804172ff3582f635a8d2af7";
-            };
-      outputs = [ "out" ];
-      postInstall = ''
-             mkdir -p $out/tmp $out/mjstuff/mj_http_errors
-             cp -pr /tmp/mj_http_errors/* $out/mjstuff/mj_http_errors/
-      '';
-  };
-
-
-   ## fixxed nix-generate-from-cpan Text::Truncate
-   perlTextTruncate = perlPackages.buildPerlPackage rec {
-    name = "Text-Truncate-1.06";
-    src = fetchurl {
-      url = "mirror://cpan/authors/id/I/IL/ILV/${name}.tar.gz";
-      sha256 = "1933361ec297253d1dd518068b863dcda131aba1da5ac887040c3d85a2d2a5d2";
-    };
-    buildInputs = [ perlPackages.ModuleBuild ];
-  };
-
-  rootfs = stdenv.mkDerivation rec {
+  rootfs = mkRootfs {
+      name = "apache2-php52-rootfs";
       perl5Packages = [
-         perlTextTruncate
          perlPackages.TimeLocal
          perlPackages.PerlMagick
          perlPackages.commonsense
@@ -582,151 +351,81 @@ let
          perlPackages.POSIXstrftimeCompiler
          perlPackages.perl
       ];
-      nativeBuildInputs = [ 
-         mjerrors
-         phpioncubepack
-         php52
-         php52Packages.timezonedb
-         php52Packages.imagick
-         php52Packages.zendopcache
-         php52Packages.intl
-         php52Packages.dbase
-         bash
-         apacheHttpd
-         apacheHttpdmpmITK
-         execline
-         coreutils
-         findutils
-         postfix
-         perl
-         gnugrep
-         zendoptimizer
-         gcc-unwrapped.lib
-      ] ++ perl5Packages;
-      name = "rootfs";
       src = ./rootfs;
-      perl5lib = perlPackages.makePerlPath perl5Packages;
-      buildPhase = ''
-         echo $nativeBuildInputs
-         export perl5lib="${perl5lib}"
-         echo ${perl5lib}
-         export coreutils="${coreutils}"
-         export bash="${bash}"
-         export apacheHttpdmpmITK="${apacheHttpdmpmITK}"
-         export apacheHttpd="${apacheHttpd}"
-         export s6portableutils="${s6-portable-utils}"
-         export phpioncubepack="${phpioncubepack}"
-         export php52="${php52}"
-         export zendoptimizer="${zendoptimizer}"
-         export mjerrors="${mjerrors}"
-         export postfix="${postfix}"
-         export libstdcxx="${gcc-unwrapped.lib}"
-         echo ${apacheHttpd}
-         for file in $(find $src/ -type f)
-         do
-           echo $file
-           substituteAllInPlace $file
-         done
-      '';
-      installPhase = ''
-         cp -pr ${src} $out/
-      '';
+#      nativeBuildInputs = [ perl  ] ++ perl5Packages ;
+#      perl5lib = perlPackages.makePerlPath perl5Packages;
+      inherit curl coreutils findutils apacheHttpdmpmITK apacheHttpd mjHttpErrorPages php52 postfix s6 execline zendoptimizer connectorc  ;
+      ioncube = ioncube.v52;
+      s6PortableUtils = s6-portable-utils;
+      s6LinuxUtils = s6-linux-utils;
+      mimeTypes = mime-types;
+      libstdcxx = gcc-unwrapped.lib;
   };
 
-keyValOrBoolKey = k: v: if isBool v then (if v then "${k}" else "") else "${k}=${v}";
-
-setToCommaSep = x: concatStringsSep "," (mapAttrsToList keyValOrBoolKey x);
-
-setToKeyVal = x: mapAttrsToList (k: v: "${k}=${v}") x;
-
-dockerRunCmd = {
-    init ? false,
-    read_only ? false,
-    network ? null,
-    volumes ? null,
-    environment ? null,
-    ...
-  }: image:
-  concatStringsSep " " (
-    [ "docker run"]
-    ++ optional init "--init"
-    ++ optional read_only "--read-only"
-    ++ optional (network != null) "--network=${network}"
-    ++ optionals (volumes != null) (map (v: "--mount ${setToCommaSep v}") volumes)
-    ++ optionals (environment != null) (map (e: "-e ${e}") (setToKeyVal environment))
-    ++ [ image ]
-);
-
-
-dockerAnnotations = {
-  argHints = {
+dockerArgHints = {
     init = false;
     read_only = true;
     network = "host";
-    environment = { HTTPD_PORT = "\$port"; } ;
-##TO DO: 
-##? -v $(pwd)/postfix-conf-test:/etc/postfix:ro ?
+    environment = { HTTPD_PORT = "$SOCKET_HTTP_PORT"; PHP_INI_SCAN_DIR = ":${rootfs}/etc/phpsec/$SECURITY_LEVEL"; };
+    tmpfs = [
+      "/tmp:mode=1777"
+      "/run/bin:exec,suid"
+    ];
+    ulimits = [
+      { name = "stack"; hard = -1; soft = -1; }
+    ];
+    security_opt = [ "apparmor:unconfined" ];
+    cap_add = [ "SYS_ADMIN" ];
     volumes = [
-      ({ type = "bind"; source = "/etc/passwd"; destination = "/etc/passwd"; readonly = true; })  
-      ({ type = "bind"; source = "/etc/group"; destination = "/etc/group"; readonly = true; })
-      ({ type = "bind"; source = "\$sitesenabled"; destination = "/read/sites-enabled"; readonly = true; })
-      ({ type = "bind"; source = "\$phpcustom"; destination = "/etc/php.d/custom.ini"; readonly = true; })
-      ({ type = "bind"; source = "/opcache"; destination = "/opcache"; readonly = false; })
-      ({ type = "bind"; source = "/home"; destination = "/home"; readonly = false; })
-      ({ type = "bind"; source = "/var/spool/postfix"; destination = "/var/spool/postfix"; readonly = false; })
-      ({ type = "bind"; source = "/var/lib/postfix"; destination = "/var/lib/postfix"; readonly = false; })
-      ({ type = "tmpfs"; destination = "/run"; })
-      ({ type = "tmpfs"; destination = "/tmp"; tmpfs-mode = "1777"; })
+      ({ type = "bind"; source =  "$SITES_CONF_PATH" ; target = "/read/sites-enabled"; read_only = true; })
+      ({ type = "bind"; source =  "/etc/passwd" ; target = "/etc/passwd"; read_only = true; })
+      ({ type = "bind"; source =  "/etc/group" ; target = "/etc/group"; read_only = true; })
+      ({ type = "bind"; source = "/opcache"; target = "/opcache"; })
+      ({ type = "bind"; source = "/home"; target = "/home"; })
+      ({ type = "bind"; source = "/opt/postfix/spool/maildrop"; target = "/var/spool/postfix/maildrop"; })
+      ({ type = "bind"; source = "/opt/postfix/spool/public"; target = "/var/spool/postfix/public"; })
+      ({ type = "bind"; source = "/opt/postfix/lib"; target = "/var/lib/postfix"; })
+      ({ type = "tmpfs"; target = "/run"; })
     ];
   };
-};
 
+gitAbbrev = firstNChars 8 (getEnv "GIT_COMMIT");
 
 in 
 
 pkgs.dockerTools.buildLayeredImage rec {
-    name = "docker-registry.intr/webservices/php52";
-    tag = "master";
-    contents = [ php52 
-                 php52Packages.timezonedb
-                 php52Packages.imagick
-                 php52Packages.zendopcache
-                 php52Packages.intl
-                 php52Packages.dbase
-                 phpioncubepack
-                 zendoptimizer
-                 bash
-                 perl
-                 coreutils
-                 findutils
-                 apacheHttpd.out
-                 apacheHttpdmpmITK
-                 rootfs
-                 execline
-                 tzdata
-                 mime-types
-                 postfix
-                 locale
-                 mjerrors
-                 glibc
-                 gcc-unwrapped.lib
+  maxLayers = 124;
+  name = "docker-registry.intr/webservices/apache2-php52";
+  tag = if gitAbbrev != "" then gitAbbrev else "latest";
+  contents = [
+    rootfs
+    tzdata
+    locale
+    postfix
+    sh
+    coreutils
+    perl
+    perl528Packages.Mojolicious
+    perl528Packages.base
+    perl528Packages.libxml_perl
+    perl528Packages.libnet
+    perl528Packages.libintl_perl
+    perl528Packages.LWP
+    perl528Packages.ListMoreUtilsXS
+    perl528Packages.LWPProtocolHttps
+  ] ++ collect isDerivation php52Packages;
+  config = {
+    Entrypoint = [ "${rootfs}/init" ];
+    Env = [
+      "TZ=Europe/Moscow"
+      "TZDIR=${tzdata}/share/zoneinfo"
+      "LOCALE_ARCHIVE_2_27=${locale}/lib/locale/locale-archive"
+      "LC_ALL=en_US.UTF-8"
     ];
-      extraCommands = ''
-          chmod 555 ${postfix}/bin/postdrop
-      '';
-   config = {
-       Entrypoint = [ "${apacheHttpd}/bin/httpd" "-D" "FOREGROUND" "-d" "${rootfs}/etc/httpd" ];
-       Env = [ 
-          "TZ=Europe/Moscow"
-          "TZDIR=/share/zoneinfo"
-          "LOCALE_ARCHIVE_2_27=${locale}/lib/locale/locale-archive"
-          "LC_ALL=en_US.UTF-8"
-          "HTTPD_PORT=8074" 
-       ];
-       Labels = rec {
-          "ru.majordomo.docker.arg-hints-json" = builtins.toJSON dockerAnnotations.argHints;
-          "ru.majordomo.docker.cmd" = dockerRunCmd dockerAnnotations.argHints "${name}:${tag}";
-          "ru.majordomo.docker.exec.reload-cmd" = "${apacheHttpd}/bin/httpd -d ${rootfs}/etc/httpd -k graceful";     
-       };
-   };
+    Labels = flattenSet rec {
+      ru.majordomo.docker.arg-hints-json = builtins.toJSON dockerArgHints;
+      ru.majordomo.docker.cmd = dockerRunCmd dockerArgHints "${name}:${tag}";
+      ru.majordomo.docker.exec.reload-cmd = "${apacheHttpd}/bin/httpd -d ${rootfs}/etc/httpd -k graceful";
+    };
+  };
 }

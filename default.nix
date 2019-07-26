@@ -385,6 +385,31 @@ pkgs.dockerTools.buildLayeredImage rec {
     perl528Packages.LWP
     perl528Packages.ListMoreUtilsXS
     perl528Packages.LWPProtocolHttps
+         perlPackages.TextTruncate
+         perlPackages.TimeLocal
+         perlPackages.PerlMagick
+         perlPackages.commonsense
+         perlPackages.Mojolicious
+         perlPackages.base
+         perlPackages.libxml_perl
+         perlPackages.libnet
+         perlPackages.libintl_perl
+         perlPackages.LWP
+         perlPackages.ListMoreUtilsXS
+         perlPackages.LWPProtocolHttps
+         perlPackages.DBI
+         perlPackages.DBDmysql
+         perlPackages.CGI
+         perlPackages.FilePath
+         perlPackages.DigestPerlMD5
+         perlPackages.DigestSHA1
+         perlPackages.FileBOM
+         perlPackages.GD
+         perlPackages.LocaleGettext
+         perlPackages.HashDiff
+         perlPackages.JSONXS
+         perlPackages.POSIXstrftimeCompiler
+         perlPackages.perl
   ] ++ collect isDerivation php52Packages;
   config = {
     Entrypoint = [ "${rootfs}/init" ];

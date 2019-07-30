@@ -338,7 +338,7 @@ dockerArgHints = {
     init = false;
     read_only = true;
     network = "host";
-    environment = { HTTPD_PORT = "$SOCKET_HTTP_PORT"; PHP_INI_SCAN_DIR = ":${rootfs}/etc/phpsec/$SECURITY_LEVEL:${rootfs}/etc/php.d"; };
+    environment = { HTTPD_PORT = "$SOCKET_HTTP_PORT"; PHP_INI_SCAN_DIR = "${rootfs}/etc/phpsec/$SECURITY_LEVEL:${rootfs}/etc/php.d"; };
     tmpfs = [
       "/tmp:mode=1777"
       "/run/bin:exec,suid"

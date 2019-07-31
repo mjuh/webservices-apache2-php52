@@ -318,6 +318,7 @@ php52Packages = {
       src = ./rootfs;
       inherit curl coreutils findutils apacheHttpdmpmITK apacheHttpd mjHttpErrorPages php52 postfix s6 execline zendoptimizer connectorc mjperl5Packages ;
       ioncube = ioncube.v52;
+      zendopcache = php52Packages.zendopcache;
       s6PortableUtils = s6-portable-utils;
       s6LinuxUtils = s6-linux-utils;
       mimeTypes = mime-types;

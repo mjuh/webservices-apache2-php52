@@ -313,16 +313,6 @@ php52Packages = {
   };
 };
 
-#   ## fixxed nix-generate-from-cpan Text::Truncate  ## TO DO in overlay perl modules
-#   perlTextTruncate = perlPackages.buildPerlPackage rec {
-#    name = "Text-Truncate-1.06";
-#    src = fetchurl {
-#      url = "mirror://cpan/authors/id/I/IL/ILV/${name}.tar.gz";
-#      sha256 = "1933361ec297253d1dd518068b863dcda131aba1da5ac887040c3d85a2d2a5d2";
-#    };
-#    buildInputs = [ perlPackages.ModuleBuild ];
-#  };
-
   rootfs = mkRootfs {
       name = "apache2-php52-rootfs";
       src = ./rootfs;
@@ -338,10 +328,11 @@ dockerArgHints = {
     init = false;
     read_only = true;
     network = "host";
-    environment = { HTTPD_PORT = "$SOCKET_HTTP_PORT"; PHP_INI_SCAN_DIR = "${rootfs}/etc/phpsec/$SECURITY_LEVEL:${rootfs}/etc/php.d"; };
+    environment = { HTTPD_PORT = "$SOCKET_HTTP_PORT"; PHP_INI_SCAN_DIR = "${rootfs}/etc/phpsec/$SECURITY_LEVEL:${rootfs}/etc/php.d"; PHP_SECURITY = "${rootfs}/etc/phpsec/$SECURITY_LEVEL"; };
     tmpfs = [
       "/tmp:mode=1777"
       "/run/bin:exec,suid"
+      "/run/php.d:mode=644"
     ];
     ulimits = [
       { name = "stack"; hard = -1; soft = -1; }

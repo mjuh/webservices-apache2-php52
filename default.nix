@@ -217,7 +217,7 @@ sh = dash.overrideAttrs (_: rec {
        --enable-sysvshm
        --enable-opcache
        --enable-magic-quotes
-       --with-config-file-scan-dir=/etc/php.d
+       --with-config-file-scan-dir=/run/php.d
        --with-pcre-regex=${pcre831} 
        --with-imap=${uwimap}
        --with-imap-ssl

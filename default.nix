@@ -31,14 +31,22 @@ let
     libstdcxx = gcc-unwrapped.lib;
   };
 
+  rootfsImage = pkgs.dockerTools.buildLayeredImage rec {
+    maxLayers = 3;
+    name = "rootfs-layered-image";
+    tag = "latest";
+    contents = [
+      rootfs
+    ];
+  };
+
 in
 
-pkgs.dockerTools.buildLayeredImage rec {
-  maxLayers = 3;
+pkgs.dockerTools.buildImage rec {
+  fromImage = rootfsImage;
   name = "docker-registry.intr/webservices/apache2-php52";
   tag = "latest";
   contents = [
-    rootfs
     tzdata
     locale
     postfix

@@ -22,9 +22,6 @@ pipeline {
             }
         }
         stage('Test Docker image') {
-            when {
-                script { PROJECT_NAME.contains('php') }
-            }
             steps {
                 gitlabCommitStatus(STAGE_NAME) {
                     sh '. /home/jenkins/.nix-profile/etc/profile.d/nix.sh && nix-build test.nix --out-link test-result --show-trace'

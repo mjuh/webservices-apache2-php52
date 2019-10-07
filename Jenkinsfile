@@ -22,14 +22,11 @@ pipeline {
             }
         }
         stage('Test Docker image') {
-
             steps {
                 script {
                     if(PROJECT_NAME.contains('php')) {
+                        nixSh cmd: 'nix-build test.nix --out-link test-result --show-trace'
 
-                        gitlabCommitStatus(STAGE_NAME) {
-                            sh '. /home/jenkins/.nix-profile/etc/profile.d/nix.sh && nix-build test.nix --out-link test-result --show-trace'
-                        }
                         publishHTML (target: [
                                 allowMissing: false,
                                 alwaysLinkToLastBuild: true,
@@ -38,6 +35,7 @@ pipeline {
                                 reportFiles: 'phpinfo.html, bitrix_server_test.html',
                                 reportName: "coverage-data"
                             ])
+
                         publishHTML (target: [
                                 allowMissing: false,
                                 alwaysLinkToLastBuild: true,

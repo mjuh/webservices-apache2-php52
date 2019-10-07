@@ -1,7 +1,6 @@
 @Library('mj-shared-library') _
 
 def dockerImage = null
-def htmlFiles = null
 
 pipeline {
     agent { label 'nixbld' }
@@ -27,18 +26,16 @@ pipeline {
                 script {
                     if(PROJECT_NAME.contains('php')) {
                         nixSh cmd: 'nix-build test.nix --out-link test-result --show-trace'
-
-                        dir("test-result/coverage-data/vm-state-docker") {
-                            htmlFiles = findFiles(glob: '*.html').join(',')
-                        }
-
+                        reportDir = 'test-result/coverage-data/vm-state-docker'
                         publishHTML (target: [
                                 allowMissing: false,
                                 alwaysLinkToLastBuild: true,
                                 keepAll: true,
-                                reportDir: 'test-result/coverage-data/vm-state-docker',
-                                reportFiles: htmlFiles,
-                                reportName: "coverage-data"
+                                reportDir: reportDir,
+                                reportFiles: dir(reportDir) {
+                                    findFiles(glob: '*.html').join(',')
+                                },
+                                reportName: 'coverage-data'
                             ])
                     }
                 }

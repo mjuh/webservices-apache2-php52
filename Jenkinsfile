@@ -27,22 +27,18 @@ pipeline {
                     if(PROJECT_NAME.contains('php')) {
                         nixSh cmd: 'nix-build test.nix --out-link test-result --show-trace'
 
-                        publishHTML (target: [
-                                allowMissing: false,
-                                alwaysLinkToLastBuild: true,
-                                keepAll: true,
-                                reportDir: 'test-result/coverage-data/vm-state-docker',
-                                reportFiles: 'phpinfo.html, bitrix_server_test.html',
-                                reportName: "coverage-data"
-                            ])
+                        def htmlFiles
+                        dir ('test-result/coverage-data/vm-state-docker') {
+                            htmlFiles = findFiles glob: '*.html'
+                        }
 
                         publishHTML (target: [
                                 allowMissing: false,
                                 alwaysLinkToLastBuild: true,
                                 keepAll: true,
-                                reportDir: 'test-result',
-                                reportFiles: 'log.html',
-                                reportName: "result"
+                                reportDir: 'test-result/coverage-data/vm-state-docker',
+                                reportFiles: htmlFiles.join(','),
+                                reportName: "coverage-data"
                             ])
                     }
                 }

@@ -13,14 +13,14 @@ let
   inherit (lib.attrsets) collect isDerivation;
   inherit (stdenv) mkDerivation;
 
-  php52DockerArgHints = lib.phpDockerArgHints php.php52;
+  php52DockerArgHints = lib.phpDockerArgHints phpDeprecated.php52;
 
   rootfs = mkRootfs {
     name = "apache2-rootfs";
     src = ./rootfs;
     inherit curl coreutils findutils apacheHttpdmpmITK apacheHttpd
       mjHttpErrorPages postfix s6 execline connectorc;
-    php52 = php.php52;
+    php52 = phpDeprecated.php52;
     mjperl5Packages = mjperl5lib;
     ioncube = ioncube.v52;
     zendoptimizer = zendoptimizer.v52;

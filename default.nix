@@ -24,7 +24,7 @@ let
     mjperl5Packages = mjperl5lib;
     ioncube = ioncube.v52;
     zendoptimizer = zendoptimizer.v52;
-    zendopcache = phpPackages.php52Packages.zendopcache;
+    zendopcache = phpDeprecatedPackages.php52Packages.zendopcache;
     s6PortableUtils = s6-portable-utils;
     s6LinuxUtils = s6-linux-utils;
     mimeTypes = mime-types;
@@ -48,7 +48,7 @@ pkgs.dockerTools.buildLayeredImage rec {
     (optipng.override{ inherit libpng ;})
     gifsicle cacert
     perl
-  ] ++ collect isDerivation phpPackages.php52Packages;
+  ] ++ collect isDerivation phpDeprecatedPackages.php52Packages;
   config = {
     Entrypoint = [ "${rootfs}/init" ];
     Env = [

@@ -16,7 +16,7 @@ let
   php52DockerArgHints = lib.phpDockerArgHints phpDeprecated.php52;
 
   rootfs = mkRootfs {
-    name = "apache2-rootfs";
+    name = "apache2-rootfs-php52";
     src = ./rootfs;
     inherit curl coreutils findutils apacheHttpdmpmITK apacheHttpd
       mjHttpErrorPages postfix s6 execline connectorc;

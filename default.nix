@@ -19,7 +19,8 @@ let
     name = "apache2-rootfs-php52";
     src = ./rootfs;
     inherit curl coreutils findutils apacheHttpdmpmITK apacheHttpd
-      mjHttpErrorPages postfix s6 execline connectorc;
+      mjHttpErrorPages s6 execline connectorc;
+                                   postfix = sendmail;
     php52 = phpDeprecated.php52;
     mjperl5Packages = mjperl5lib;
     ioncube = ioncube.v52;
@@ -50,7 +51,7 @@ pkgs.dockerTools.buildLayeredImage rec {
     rootfs
     tzdata
     locale
-    postfix
+                                  sendmail
     sh
     coreutils
     libjpeg_turbo

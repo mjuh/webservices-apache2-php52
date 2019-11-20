@@ -18,7 +18,7 @@ let
   rootfs = mkRootfs {
     name = "apache2-rootfs-php52";
     src = ./rootfs;
-    inherit curl coreutils findutils apacheHttpdmpmITK apacheHttpd
+    inherit zlib curl coreutils findutils apacheHttpdmpmITK apacheHttpd
       mjHttpErrorPages s6 execline connectorc;
     postfix = sendmail;
     php52 = phpDeprecated.php52;
@@ -52,6 +52,7 @@ pkgs.dockerTools.buildLayeredImage rec {
     perl
     gcc-unwrapped.lib
     glibc
+    zlib
   ]
   ++ collect isDerivation phpDeprecatedPackages.php52Packages
   ++ collect isDerivation mjperl5Packages;

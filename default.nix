@@ -51,7 +51,8 @@ pkgs.dockerTools.buildLayeredImage rec {
     gcc-unwrapped.lib
     glibc
     zlib
-    mariadbConnectorC perl520
+    mysqlConnectorC
+    perl520
   ]
   ++ collect isDerivation php52Packages
   ++ collect isDerivation mjperl5Packages;

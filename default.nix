@@ -2,7 +2,7 @@
 
 with import <nixpkgs> {
   overlays = [
-    (import (builtins.fetchGit { url = "git@gitlab.intr:_ci/nixpkgs.git"; ref = "master"; }))
+    (import (builtins.fetchGit { url = "git@gitlab.intr:_ci/nixpkgs.git"; ref = (if builtins ? getEnv then builtins.getEnv "GIT_BRANCH" else "master"); }))
   ];
 };
 
@@ -13,15 +13,14 @@ let
   inherit (lib.attrsets) collect isDerivation;
   inherit (stdenv) mkDerivation;
 
-  php52DockerArgHints = lib.phpDockerArgHints phpDeprecated.php52;
+  php52DockerArgHints = lib.phpDockerArgHints php52;
 
   rootfs = mkRootfs {
     name = "apache2-rootfs-php52";
     src = ./rootfs;
     inherit zlib curl coreutils findutils apacheHttpdmpmITK apacheHttpd
-      mjHttpErrorPages s6 execline connectorc;
+      mjHttpErrorPages s6 execline connectorc php52;
     postfix = sendmail;
-    php52 = phpDeprecated.php52;
     mjperl5Packages = mjperl5lib;
     ioncube = ioncube.v52;
     zendoptimizer = zendoptimizer.v52;
@@ -54,7 +53,7 @@ pkgs.dockerTools.buildLayeredImage rec {
     zlib
     connectorc perl520
   ]
-  ++ collect isDerivation phpDeprecatedPackages.php52Packages
+  ++ collect isDerivation php52Packages
   ++ collect isDerivation mjperl5Packages;
   config = {
     Entrypoint = [ "${rootfs}/init" ];

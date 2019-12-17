@@ -19,12 +19,12 @@ let
     name = "apache2-rootfs-php52";
     src = ./rootfs;
     inherit zlib curl coreutils findutils apacheHttpdmpmITK apacheHttpd
-      mjHttpErrorPages s6 execline connectorc php52;
+      mjHttpErrorPages s6 execline mariadbConnectorC php52;
     postfix = sendmail;
     mjperl5Packages = mjperl5lib;
     ioncube = ioncube.v52;
     zendoptimizer = zendoptimizer.v52;
-    zendopcache = phpDeprecatedPackages.php52Packages.zendopcache;
+    zendopcache = php52Packages.zendopcache;
     s6PortableUtils = s6-portable-utils;
     s6LinuxUtils = s6-linux-utils;
     mimeTypes = mime-types;
@@ -51,7 +51,7 @@ pkgs.dockerTools.buildLayeredImage rec {
     gcc-unwrapped.lib
     glibc
     zlib
-    connectorc perl520
+    mariadbConnectorC perl520
   ]
   ++ collect isDerivation php52Packages
   ++ collect isDerivation mjperl5Packages;

@@ -19,7 +19,7 @@ let
     name = "apache2-rootfs-php52";
     src = ./rootfs;
     inherit zlib curl coreutils findutils apacheHttpdmpmITK apacheHttpd
-      mjHttpErrorPages s6 execline mariadbConnectorC php52;
+      mjHttpErrorPages s6 execline php52;
     postfix = sendmail;
     mjperl5Packages = mjperl5lib;
     ioncube = ioncube.v52;

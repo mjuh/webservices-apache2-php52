@@ -7,7 +7,7 @@ with import <nixpkgs> {
 };
 
 let
-  inherit (builtins) concatMap getEnv toJSON;
+  inherit (builtins) concatMap getEnv replaceStrings toJSON;
   inherit (dockerTools) buildLayeredImage;
   inherit (lib) concatMapStringsSep firstNChars flattenSet dockerRunCmd mkRootfs;
   inherit (lib.attrsets) collect isDerivation;
@@ -30,6 +30,13 @@ let
     mimeTypes = mime-types;
     libstdcxx = gcc-unwrapped.lib;
   };
+
+gitAbbrev = firstNChars 8 (getEnv "GIT_COMMIT");
+gitCommit = (getEnv "GIT_COMMIT");
+jenkinsBuildUrl = (getEnv "BUILD_URL");
+jenkinsJobName = (getEnv "JOB_NAME");
+jenkinsBranchName = (getEnv "BRANCH_NAME");
+gitlabCommitUrl = "https://gitlab.intr/" + (replaceStrings [jenkinsBranchName ""] ["" ""] jenkinsJobName) + "/commit/" + gitCommit;
 
 in
 
@@ -69,6 +76,8 @@ pkgs.dockerTools.buildLayeredImage rec {
       ru.majordomo.docker.arg-hints-json = builtins.toJSON php52DockerArgHints;
       ru.majordomo.docker.cmd = dockerRunCmd php52DockerArgHints "${name}:${tag}";
       ru.majordomo.docker.exec.reload-cmd = "${apacheHttpd}/bin/httpd -d ${rootfs}/etc/httpd -k graceful";
+      ru.majordomo.ci.jenkins.build.url = if jenkinsBuildUrl != "" then jenkinsBuildUrl + "console" else "none";
+      ru.majordomo.ci.gitlab.commit.url = if gitlabCommitUrl != "" then gitlabCommitUrl else "none";
     };
   };
     extraCommands = ''

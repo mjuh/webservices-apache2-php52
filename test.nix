@@ -10,4 +10,5 @@ maketestPhp {
   php = php52;
   image = callPackage ./default.nix { inherit ref; };
   rootfs = ./rootfs;
+  containerStructureTestConfig = ./container-structure-test.yaml;
 }{}

@@ -1,4 +1,4 @@
-{ ref ? "master" }:
+{ ref ? "master", debug ? false  }:
 
 with import <nixpkgs> {
   overlays = [
@@ -13,11 +13,12 @@ let
   domain = "php52.ru";
   phpVersion = "php" + lib.versions.major php52.version
     + lib.versions.minor php52.version;
-  containerStructureTestConfig = ./container-structure-test.yaml;
+  containerStructureTestConfig = ./tests/container-structure-test.yaml;
   image = callPackage ./default.nix { inherit ref; };
 
 in maketestPhp {
   inherit image;
+  inherit debug;
   php = php52;
   inherit containerStructureTestConfig;
   rootfs = ./rootfs;
@@ -44,7 +45,7 @@ in maketestPhp {
       description = "Copy phpinfo-json.php.";
       action = "succeed";
       command =
-        "cp -v ${./phpinfo-json.php} /home/u12/${domain}/www/phpinfo-json.php";
+        "cp -v ${./tests/phpinfo-json.php} /home/u12/${domain}/www/phpinfo-json.php";
     })
     (dockerNodeTest {
       description = "Fetch phpinfo-json.php.";
@@ -57,7 +58,7 @@ in maketestPhp {
       action = "succeed";
       command = testDiffPy {
         inherit pkgs;
-        sampleJson = (./. + "/${phpVersion}.json");
+        sampleJson = (./tests/. + "/${phpVersion}.json");
         output = "/tmp/xchg/coverage-data/deepdiff.html";
       };
     })
@@ -66,9 +67,9 @@ in maketestPhp {
       action = "succeed";
       command = testDiffPy {
         inherit pkgs;
-        sampleJson = (./. + "/${phpVersion}.json");
+        sampleJson = (./tests/. + "/${phpVersion}.json");
         output = "/tmp/xchg/coverage-data/deepdiff-with-excludes.html";
-        excludes = import ./diff-to-skip.nix;
+        excludes = import ./tests/diff-to-skip.nix;
       };
     })
     (dockerNodeTest {
@@ -76,7 +77,7 @@ in maketestPhp {
       action = "succeed";
       command = testDiffPy {
         inherit pkgs;
-        sampleJson = (./. + "/web34/${phpVersion}.json");
+        sampleJson = (./tests/. + "/web34/${phpVersion}.json");
         output = "/tmp/xchg/coverage-data/deepdiff-web34.html";
       };
     })
@@ -85,16 +86,16 @@ in maketestPhp {
       action = "succeed";
       command = testDiffPy {
         inherit pkgs;
-        sampleJson = (./. + "/web34/${phpVersion}.json");
+        sampleJson = (./tests/. + "/web34/${phpVersion}.json");
         output = "/tmp/xchg/coverage-data/deepdiff-web34-with-excludes.html";
-        excludes = import ./diff-to-skip.nix;
+        excludes = import ./tests/diff-to-skip.nix;
       };
     })
     (dockerNodeTest {
       description = "Copy bitrix_server_test.php.";
       action = "succeed";
       command = "cp -v ${
-          ./bitrix_server_test.php
+          ./tests/bitrix_server_test.php
         } /home/u12/${domain}/www/bitrix_server_test.php";
     })
     (dockerNodeTest {

@@ -1,4 +1,5 @@
 [
+  "root['includedFiles']"
   "root['version']"
   "root['ini']['extension_dir']['global_value']"
   "root['ini']['extension_dir']['local_value']"

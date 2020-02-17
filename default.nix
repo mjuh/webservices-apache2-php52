@@ -46,6 +46,7 @@ pkgs.dockerTools.buildLayeredImage rec {
     libjpeg_turbo
     jpegoptim
     (optipng.override{ inherit libpng ;})
+    imagemagick
     gifsicle nss-certs.unbundled zip
     gcc-unwrapped.lib
     glibc

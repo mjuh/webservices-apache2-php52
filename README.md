@@ -15,7 +15,7 @@ To build Apache PHP 5.2, follow these steps:
 
 Linux and macOS:
 ``` shell
-docker load --input $(nix-build --no-out-link)
+docker load --input $(nix-build --argstr overlayUrl https://github.com/mjuh/ci-nixpkgs.git --no-out-link)
 ```
 
 ## Using Apache PHP 5.2

@@ -1,1 +1,1 @@
-buildWebService publishOnInternet: true
+buildWebService (flake: true, tests: false)

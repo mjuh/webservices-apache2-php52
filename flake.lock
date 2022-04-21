@@ -16,37 +16,20 @@
         "type": "github"
       }
     },
-    "flake-utils": {
-      "locked": {
-        "lastModified": 1649676176,
-        "narHash": "sha256-OWKJratjt2RW151VUlJPRALb7OU2S5s+f0vLj4o1bHM=",
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "rev": "a4b154ebbdc88c8498a5c7b01589addc9e9cb678",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "type": "github"
-      }
-    },
     "majordomo": {
       "inputs": {
         "flake-compat": "flake-compat",
         "nixpkgs": "nixpkgs",
         "nixpkgs-deprecated": "nixpkgs-deprecated",
-        "nixpkgs-php81": "nixpkgs-php81",
         "nixpkgs-stable": "nixpkgs-stable",
-        "nixpkgs-unstable": "nixpkgs-unstable",
-        "shared-http-errors": "shared-http-errors"
+        "nixpkgs-unstable": "nixpkgs-unstable"
       },
       "locked": {
-        "lastModified": 1650417581,
-        "narHash": "sha256-+78Zmtd0WZht180MoNsJTXc+zsXpetinEVRF5ba/DPc=",
+        "lastModified": 1633355364,
+        "narHash": "sha256-oBDa3bQ+6akKopWX5snUHHfONj3EjMuHODohIZD9Lic=",
         "ref": "master",
-        "rev": "2104ac20f89e67c6cea2fec44f520670bc5eba36",
-        "revCount": 934,
+        "rev": "9f9b22bca02f5d18d88b79af577624cb1d3d2738",
+        "revCount": 889,
         "type": "git",
         "url": "https://gitlab.intr/_ci/nixpkgs"
       },
@@ -89,21 +72,6 @@
         "type": "github"
       }
     },
-    "nixpkgs-php81": {
-      "locked": {
-        "lastModified": 1638397275,
-        "narHash": "sha256-2Jos1CJFTMO9IbulbM4PTKn24nISIDQCAG/AqYQ8rmg=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "391f93a83c3a486475d60eb4a569bb6afbf306ad",
-        "type": "github"
-      },
-      "original": {
-        "id": "nixpkgs",
-        "ref": "nixpkgs-unstable",
-        "type": "indirect"
-      }
-    },
     "nixpkgs-stable": {
       "locked": {
         "lastModified": 1606789930,
@@ -121,11 +89,11 @@
     },
     "nixpkgs-unstable": {
       "locked": {
-        "lastModified": 1648219316,
-        "narHash": "sha256-Ctij+dOi0ZZIfX5eMhgwugfvB+WZSrvVNAyAuANOsnQ=",
+        "lastModified": 1625512941,
+        "narHash": "sha256-P2POZzfG+Hp8ktIWwkOs/OMB8jSsQvIPQaLO0swpgZo=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "30d3d79b7d3607d56546dd2a6b49e156ba0ec634",
+        "rev": "3e0ce8c5d478d06b37a4faa7a4cc8642c6bb97de",
         "type": "github"
       },
       "original": {
@@ -152,28 +120,6 @@
       "inputs": {
         "majordomo": "majordomo",
         "nixpkgs": "nixpkgs_2"
-      }
-    },
-    "shared-http-errors": {
-      "inputs": {
-        "flake-utils": "flake-utils",
-        "nixpkgs": [
-          "majordomo",
-          "nixpkgs-unstable"
-        ]
-      },
-      "locked": {
-        "lastModified": 1650417385,
-        "narHash": "sha256-5bjOybohmVic3or6heD75NTlJ+PkXxZKxrz0UcaDpno=",
-        "ref": "master",
-        "rev": "3e353d0400138563e62dfca946b013706277a843",
-        "revCount": 15,
-        "type": "git",
-        "url": "https://gitlab.intr/shared/http_errors.git"
-      },
-      "original": {
-        "type": "git",
-        "url": "https://gitlab.intr/shared/http_errors.git"
       }
     }
   },

@@ -9,7 +9,13 @@ let
   inherit (lib.attrsets) collect isDerivation;
   inherit (stdenv) mkDerivation;
 
-  php52DockerArgHints = lib.phpDockerArgHints { php = php52; };
+  php52DockerArgHints = lib.phpDockerArgHints { php = php52;
+    extraVolumes = [({ # workaround that needed till problem that cause php realpath() return false on valid path with new majordomo input is not found
+      type = "bind";
+      source = "/var/log/home";
+      target = "/var/log/home";
+    })];
+ };
 
   rootfs = mkRootfs {
     name = "apache2-rootfs-php52";
